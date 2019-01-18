@@ -2,17 +2,135 @@ package powerdns
 
 import (
 	"bytes"
-	"crypto/tls"
+	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
+	"io"
 	//"github.com/davecgh/go-spew/spew"
-	"io/ioutil"
+
 	"net/http"
-	"strconv"
+	"net/url"
 	"strings"
-	"time"
 )
+
+const (
+	baseURLPath    = "/api/v1/"
+	defaultBaseURL = "https://example.com/"
+	userAgent      = "go-powerdns"
+
+	headerAPIKey = "X-API-Key"
+)
+
+//  A Client manages communication with the PowerDNS API.
+type Client struct {
+	client *http.Client // HTTP client used to communicate with the API.
+
+	BaseURL   *url.URL // Base URL for API requests.
+	UserAgent string   // User agent used when communicating with PowerDNS API.
+	common    service  // Reuse a single struct instead of allocating one for each service on the heap.
+
+	Servers *ServerService
+}
+
+// NewRequest creates an API request. A relative URL can be provided in urlStr,
+// in which case it is resolved relative to the BaseURL of the Client.
+// Relative URLs should always be specified without a preceding slash. If
+// specified, the value pointed to by body is JSON encoded and included as the
+// request body
+func (c *Client) NewRequest(method, urlStr string, body interface{}) (*http.Request, error) {
+	if !strings.HasPrefix(c.BaseURL.Path, "/") {
+		return nil, fmt.Errorf("BaseURL must have a trailing slash, but %q does not", c.BaseURL)
+	}
+	u, err := c.BaseURL.Parse(urlStr)
+	if err != nil {
+		return nil, err
+	}
+
+	var buf io.ReadWriter
+	if body != nil {
+		buf = new(bytes.Buffer)
+		enc := json.NewEncoder(buf)
+		enc.SetEscapeHTML(false)
+		err := enc.Encode(body)
+		if err != nil {
+			return nil, err
+		}
+	}
+	req, err := http.NewRequest(method, u.String(), buf)
+	if err != nil {
+		return nil, err
+	}
+
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	if c.UserAgent != "" {
+		req.Header.Set("User-Agent", c.UserAgent)
+	}
+	return req, nil
+}
+
+func (c *Client) Do(ctx context.Context, req *http.Request, v interface{}) (*Response, error) {
+	req = withContext(ctx, req)
+
+	resp, err := c.client.Do(req)
+	if err != nil {
+		// If er got an error, and the context has been canceled,
+		// the context's erros is probably more useful.
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
+
+		if e, ok := err.(*url.Error); ok {
+			if url, err := url.Parse(e.URL); err == nil {
+				e.URL = url.String()
+				return nil, e
+			}
+		}
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	response := newResponse(resp)
+
+	err = CheckResponse(resp)
+	if err != nil {
+		return response, err
+	}
+	if v != nil {
+		if w, ok := v.(io.Writer); ok {
+			io.Copy(w, resp.Body)
+		} else {
+			decErr := json.NewDecoder(resp.Body).Decode(v)
+			if decErr == io.EOF {
+				decErr = nil // ignore EOF errors caused by empty response body
+			}
+			if decErr != nil {
+				err = decErr
+			}
+		}
+	}
+	return response, err
+}
+
+// Response is a PowerDNS response. It's not really needed, but GitHub is using
+// it so it must be cool ;)
+type Response struct {
+	*http.Response
+}
+
+func newResponse(r *http.Response) *Response {
+	response := &Response{Response: r}
+	return response
+}
+
+// Need to research this later.
+// https://github.com/google/go-github/blob/60d040d2dafa18fa3e86cbf22fbc3208ef9ef1e0/github/without_appengine.go
+func withContext(ctx context.Context, req *http.Request) *http.Request {
+	return req.WithContext(ctx)
+}
 
 type Powerdns struct {
 	Hostname    string
@@ -22,6 +140,26 @@ type Powerdns struct {
 	NameServers []string
 	client      *http.Client
 }
+
+type service struct {
+	client *Client
+}
+
+// NewClient returns a new GitHub API client. If a nil httpClient is
+// provided, http.DefaultClient will be used.
+func NewClient(httpClient *http.Client) *Client {
+	if httpClient == nil {
+		httpClient = http.DefaultClient
+	}
+	baseURL, _ := url.Parse(defaultBaseURL)
+
+	c := &Client{client: httpClient, BaseURL: baseURL, UserAgent: userAgent}
+	c.common.client = c
+	c.Servers = (*ServerService)(&c.common)
+	return c
+}
+
+/*
 
 func NewPowerdns(HostName string, ApiKey string, NameServers []string) *Powerdns {
 	var powerdns *Powerdns
@@ -446,3 +584,4 @@ func (powerdns *Powerdns) CreateDomain(domain string) error {
 
 	return nil
 }
+*/
