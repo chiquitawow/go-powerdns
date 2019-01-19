@@ -6,19 +6,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	//"github.com/davecgh/go-spew/spew"
-
 	"net/http"
 	"net/url"
 	"strings"
 )
 
 const (
-	baseURLPath    = "/api/v1/"
 	defaultBaseURL = "https://example.com/"
+	headerAPIKey   = "X-API-Key"
 	userAgent      = "go-powerdns"
-
-	headerAPIKey = "X-API-Key"
 )
 
 //  A Client manages communication with the PowerDNS API.
@@ -75,20 +71,22 @@ func (c *Client) Do(ctx context.Context, req *http.Request, v interface{}) (*Res
 
 	resp, err := c.client.Do(req)
 	if err != nil {
-		// If er got an error, and the context has been canceled,
-		// the context's erros is probably more useful.
+		// If we got an error, and the context has been canceled,
+		// the context's error is probably more useful.
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		default:
 		}
 
+		// If the error type is *url.Error, sanitize its URL before returning.
 		if e, ok := err.(*url.Error); ok {
 			if url, err := url.Parse(e.URL); err == nil {
 				e.URL = url.String()
 				return nil, e
 			}
 		}
+
 		return nil, err
 	}
 	defer resp.Body.Close()
@@ -99,6 +97,7 @@ func (c *Client) Do(ctx context.Context, req *http.Request, v interface{}) (*Res
 	if err != nil {
 		return response, err
 	}
+
 	if v != nil {
 		if w, ok := v.(io.Writer); ok {
 			io.Copy(w, resp.Body)
@@ -112,6 +111,7 @@ func (c *Client) Do(ctx context.Context, req *http.Request, v interface{}) (*Res
 			}
 		}
 	}
+
 	return response, err
 }
 
