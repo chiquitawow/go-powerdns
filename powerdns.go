@@ -79,14 +79,6 @@ func (c *Client) Do(ctx context.Context, req *http.Request, v interface{}) (*Res
 		default:
 		}
 
-		// If the error type is *url.Error, sanitize its URL before returning.
-		if e, ok := err.(*url.Error); ok {
-			if url, err := url.Parse(e.URL); err == nil {
-				e.URL = url.String()
-				return nil, e
-			}
-		}
-
 		return nil, err
 	}
 	defer resp.Body.Close()

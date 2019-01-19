@@ -163,3 +163,39 @@ func TestDo(t *testing.T) {
 		t.Errorf("Response body = %v, want %v", body, want)
 	}
 }
+
+func TestDo_httpError(t *testing.T) {
+	client, mux, _, teardown := setup()
+	defer teardown()
+
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "Bad Request", 400)
+	})
+
+	req, _ := client.NewRequest("GET", ".", nil)
+	resp, err := client.Do(context.Background(), req, nil)
+
+	if err == nil {
+		t.Fatal("Expected HTTP 400 error, got no error.")
+	}
+	if resp.StatusCode != 400 {
+		t.Errorf("Expected HTTP 400 error, got %d status code.", resp.StatusCode)
+	}
+}
+
+func TestDo_noContent(t *testing.T) {
+	client, mux, _, teardown := setup()
+	defer teardown()
+
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	})
+
+	var body json.RawMessage
+
+	req, _ := client.NewRequest("GET", ".", nil)
+	_, err := client.Do(context.Background(), req, &body)
+	if err != nil {
+		t.Fatalf("Do returned unexpected error: %v", err)
+	}
+}
