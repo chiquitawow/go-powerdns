@@ -25,15 +25,7 @@ func setup() (client *Client, mux *http.ServeMux, serverURL string, teardown fun
 	// mux is the HTTP request multiplexer used with the test server.
 	mux = http.NewServeMux()
 
-	apiHandler := http.NewServeMux()
-	apiHandler.Handle(baseURLPath+"/", http.StripPrefix(baseURLPath, mux))
-	apiHandler.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
-		fmt.Fprintln(w, `{message: "hello, world"}`)
-	})
-
-	// server is a test HTTP server used to provide mock API responses.
-	server := httptest.NewServer(apiHandler)
-
+	server := httptest.NewServer(mux)
 	// client is the client being tested and is
 	// configured to use test server.
 	client = NewClient(nil)
