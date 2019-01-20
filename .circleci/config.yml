@@ -11,9 +11,6 @@ jobs:
       - run: mkdir -p $TEST_RESULTS
       - run: go get github.com/jstemmer/go-junit-report
 
-      - run: go get -u -v -t github.com/Masterminds/glide
-      - run: glide install -v
-
       - run:
           name: Run unit tests
           command: |
