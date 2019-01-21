@@ -23,6 +23,7 @@ type Client struct {
 
 	BaseURL   *url.URL // Base URL for API requests.
 	UserAgent string   // User agent used when communicating with PowerDNS API.
+	APIKey    string   //API Key used when communicating with PowerDNS API.
 	common    service  // Reuse a single struct instead of allocating one for each service on the heap.
 
 	Servers *ServerService
@@ -62,6 +63,9 @@ func (c *Client) NewRequest(method, urlStr string, body interface{}) (*http.Requ
 	}
 	if c.UserAgent != "" {
 		req.Header.Set("User-Agent", c.UserAgent)
+	}
+	if c.APIKey != "" {
+		req.Header.Set("X-API-Key", c.APIKey)
 	}
 	return req, nil
 }
@@ -150,6 +154,9 @@ func NewClient(httpClient *http.Client) *Client {
 	c.Servers = (*ServerService)(&c.common)
 	return c
 }
+
+// String hack
+func String(s string) *string { return &s }
 
 /*
 

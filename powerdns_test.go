@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	baseURLPath = "/api/v1/"
+	baseURLPath = "/api/v1"
 )
 
 var (
@@ -31,7 +31,6 @@ func setup() (client *Client, mux *http.ServeMux, serverURL string, teardown fun
 	client = NewClient(nil)
 	url, _ := url.Parse(server.URL + baseURLPath + "/")
 	client.BaseURL = url
-
 	return client, mux, server.URL, server.Close
 }
 
