@@ -4,4 +4,5 @@
 
 Implementing the [PowerDNS](https://www.powerdns.com/) API in Go.
 
-This is currently work in progress. Use it at your own risk.
+This is currently work in progress. Use it at your own risk. Only testing
+version 4.2.0 of the API.
