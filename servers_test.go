@@ -2,12 +2,20 @@ package powerdns
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"net/http"
 	"reflect"
 	"testing"
 )
+
+var expectedServerStruct = Server{
+	ConfigUrl:  "/api/v1/servers/localhost/config{/config_setting}",
+	DaemonType: "authoritative",
+	ID:         "localhost",
+	ServerType: "Server",
+	URL:        "/api/v1/servers/localhost",
+	Version:    "4.2.0-alpha1",
+	ZonesURL:   "/api/v1/servers/localhost/zones{/zone}",
+}
 
 var wantServers = []byte(`[{
 	"config_url": "/api/v1/servers/localhost/config{/config_setting}",
@@ -25,15 +33,6 @@ func TestServerService_Get(t *testing.T) {
 
 	mux.HandleFunc("/api/v1/servers", func(w http.ResponseWriter, r *http.Request) {
 		testMethod(t, r, "GET")
-		//fmt.Fprint(w, `[{
-		//	"config_url": "/api/v1/servers/localhost/config{/config_setting}",
-		//	"daemon_type": "authoritative",
-		//	"id": "localhost",
-		//	"type": "Server",
-		//	"url": "/api/v1/servers/localhost",
-		//"version": "4.2.0-alpha1",
-		//"zones_url": "/api/v1/servers/localhost/zones{/zone}"
-		//	}]`)
 		w.Write(wantServers)
 	})
 
@@ -42,11 +41,9 @@ func TestServerService_Get(t *testing.T) {
 		t.Errorf("Servers.Get returned error: %v", err)
 	}
 
-	ptrSrvs := Server{}
-	json.Unmarshal(wantServers, ptrSrvs)
-	fmt.Printf("> %v\n", ptrSrvs)
+	want := []Server{expectedServerStruct}
 
-	if !reflect.DeepEqual(got, wantServers) {
-		t.Errorf("Servers.Get returned %+v,\n want %+v", got, wantServers)
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("Servers.Get returned %+v,\n want %+v", got, want)
 	}
 }
