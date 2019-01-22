@@ -26,7 +26,9 @@ type Client struct {
 	APIKey    string   //API Key used when communicating with PowerDNS API.
 	common    service  // Reuse a single struct instead of allocating one for each service on the heap.
 
+	// Services for talking to different parts of the PowerDNS API.
 	Servers *ServerService
+	Zones   *ZoneService
 }
 
 // NewRequest creates an API request. A relative URL can be provided in urlStr,
@@ -57,7 +59,6 @@ func (c *Client) NewRequest(method, urlStr string, body interface{}) (*http.Requ
 	if err != nil {
 		return nil, err
 	}
-
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
@@ -152,11 +153,9 @@ func NewClient(httpClient *http.Client) *Client {
 	c := &Client{client: httpClient, BaseURL: baseURL, UserAgent: userAgent}
 	c.common.client = c
 	c.Servers = (*ServerService)(&c.common)
+	c.Zones = (*ZoneService)(&c.common)
 	return c
 }
-
-// String hack
-func String(s string) *string { return &s }
 
 /*
 

@@ -1,6 +1,8 @@
 package powerdns
 
-import "context"
+import (
+	"context"
+)
 
 // https://doc.powerdns.com/authoritative/http-api/zone.html
 type ZoneService service
@@ -18,6 +20,8 @@ type Zone struct {
 	ID string `json:"id,omitempty"`
 	// Zone kind ("Native", "Master", or "Slave")
 	Kind string `json:"kind,omitempty"`
+	// Mystery key
+	LastCheck int `json:"last_check,omitempty"`
 	// List of IPs configured as a master for this zone.
 	Masters []string `json:"masters,omitempty"`
 	// Name of the zone (e.g. “example.com.”) MUST have a trailing dot
@@ -25,7 +29,7 @@ type Zone struct {
 	// MAY be sent in client bodies during creation
 	Nameservers []string `json:"nameservers,omitempty"`
 	// The SOA serial notifications have been sent out for.
-	NotifiedSerial string `json:"notified_serial,omitempty"`
+	NotifiedSerial int `json:"notified_serial,omitempty"`
 	// Whether or not the zone uses NSEC3 narrow
 	NSEC3Narrow bool `json:"nsec3narrow,omitempty"`
 	// The NSEC3PARAM record
@@ -35,7 +39,7 @@ type Zone struct {
 	//RRSets in this zone
 	RRSets []RRSet
 	// The SOA serial number
-	Serial string `json:"serial,omitempty"`
+	Serial int `json:"serial,omitempty"`
 	// The SOA-EDIT metadata item
 	SOAEdit string `json:"soa_edit,omitempty"`
 	// The SOA-EDIT-API metadate item
@@ -89,7 +93,16 @@ type Comment struct {
 	ModifiedAt string `json:"modified_at,omitempty"`
 }
 
+// ZoneRequest defines a request to create/edit a zone.
+type ZoneRequest struct {
+	Kind        string   `json:"kind,omitempty"`
+	Masters     []string `json:"masters,omitempty"`
+	Name        string   `json:"name,omitempty"`
+	Nameservers []string `json:"nameservers,omitempty"`
+}
+
 // List returns all Zones in a server
+// GET /servers/{server_id}/zones
 func (s *ZoneService) List(ctx context.Context) ([]Zone, *Response, error) {
 	req, err := s.client.NewRequest("GET", "servers/localhost/zones", nil)
 	if err != nil {
@@ -102,4 +115,20 @@ func (s *ZoneService) List(ctx context.Context) ([]Zone, *Response, error) {
 		return nil, resp, err
 	}
 	return zz, resp, nil
+}
+
+// Post creates a new domain, returns the zone on creation.
+// POST /servers/{server_id}/zones
+func (s *ZoneService) Post(ctx context.Context, zr ZoneRequest) (Zone, *Response, error) {
+	req, err := s.client.NewRequest("POST", "servers/localhost/zones", zr)
+	if err != nil {
+		return Zone{}, nil, err
+	}
+
+	var z Zone
+	resp, err := s.client.Do(ctx, req, &z)
+	if err != nil {
+		return Zone{}, resp, err
+	}
+	return z, resp, nil
 }
